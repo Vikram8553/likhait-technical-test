@@ -1,13 +1,10 @@
-/**
- * Form component for adding/editing expenses
- */
-
-import React from "react";
+import React, { useEffect } from "react";
 import { ExpenseFormData } from "../types";
 import { EXPENSE_CATEGORIES } from "../constants/categories";
 import { TextField, SelectBox, Button } from "../vibes";
 import { useExpenseForm } from "../hooks/useExpenseForm";
 import { AddCategoryModal } from "./AddCategoryModal";
+import { fetchCategories } from "../services/api";
 
 interface ExpenseFormProps {
   initialData?: Partial<ExpenseFormData>;
@@ -31,12 +28,25 @@ export function ExpenseForm({
   const [extraCategories, setExtraCategories] = React.useState<string[]>([]);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = React.useState(false);
 
-  const handleCategoryAdded = (newCategory: string) => {
-    setExtraCategories((prev) => [...prev, newCategory]);
-    handleChange("category", newCategory);
+  const today = new Date().toISOString().split("T")[0];
+
+  const loadCategories = () => {
+    fetchCategories().then((cats) => {
+      const extra = cats
+        .map((c) => c.name)
+        .filter((name) => !EXPENSE_CATEGORIES.includes(name as any));
+      setExtraCategories(extra);
+    });
   };
 
-  const today = new Date().toISOString().split("T")[0];
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const handleCategoryAdded = (newCategory: string) => {
+    loadCategories();
+    handleChange("category", newCategory);
+  };
 
   const formStyle: React.CSSProperties = {
     display: "flex",
