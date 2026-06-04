@@ -5,8 +5,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Install dependencies with legacy peer deps to fix rollup issue
+RUN npm install && \
+    npm install @rollup/rollup-linux-x64-musl --save-optional
 
 # Copy the rest of the application
 COPY . .
