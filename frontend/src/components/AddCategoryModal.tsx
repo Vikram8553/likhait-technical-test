@@ -1,66 +1,161 @@
-import React, { useState } from "react";
-import { createCategory } from "../services/api";
-import { Modal, TextField, Button } from "../vibes";
+import React, { useEffect } from "react";
+import { ExpenseFormData } from "../types";
+import { EXPENSE_CATEGORIES } from "../constants/categories";
+import { TextField, SelectBox, Button } from "../vibes";
+import { useExpenseForm } from "../hooks/useExpenseForm";
+import { AddCategoryModal } from "./AddCategoryModal";
+import { fetchCategories } from "../services/api";
 
-interface AddCategoryModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onCategoryAdded: (newCategory: string) => void;
+interface ExpenseFormProps {
+  initialData?: Partial<ExpenseFormData>;
+  onSubmit: (data: ExpenseFormData) => Promise<void>;
+  onCancel?: () => void;
+  submitLabel?: string;
 }
 
-export function AddCategoryModal({
-  isOpen,
-  onClose,
-  onCategoryAdded,
-}: AddCategoryModalProps) {
-  const [name, setName] = useState("");
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export function ExpenseForm({
+  initialData,
+  onSubmit,
+  onCancel,
+  submitLabel = "Add Expense",
+}: ExpenseFormProps) {
+  const { formData, errors, isSubmitting, handleChange, handleSubmit } =
+    useExpenseForm({
+      initialData,
+      onSubmit,
+    });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+  const [extraCategories, setExtraCategories] = React.useState<string[]>([]);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = React.useState(false);
 
-    if (!name.trim()) {
-      setError("Category name is required.");
-      return;
-    }
+  const today = new Date().toISOString().split("T")[0];
 
-    setIsSubmitting(true);
-    try {
-      await createCategory(name.trim());
-      setName("");
-      onCategoryAdded(name.trim());
-      onClose();
-    } catch (err: any) {
-      setError(err.message || "Failed to create category.");
-    } finally {
-      setIsSubmitting(false);
-    }
+  const loadCategories = () => {
+    fetchCategories().then((cats) => {
+      const extra = cats
+        .map((c) => c.name)
+        .filter((name) => !EXPENSE_CATEGORIES.includes(name as any));
+      setExtraCategories(extra);
+    });
   };
 
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const handleCategoryAdded = (newCategory: string) => {
+    loadCategories();
+    handleChange("category", newCategory);
+  };
+
+  const formStyle: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
+  };
+
+  const buttonGroupStyle: React.CSSProperties = {
+    display: "flex",
+    gap: "0.5rem",
+    marginTop: "0.5rem",
+  };
+
+  const categoryOptions = [
+    ...EXPENSE_CATEGORIES.map((category) => ({
+      value: category,
+      label: category,
+    })),
+    ...extraCategories.map((category) => ({
+      value: category,
+      label: category,
+    })),
+  ];
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add New Category">
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-        <TextField
-          label="Category Name"
-          type="text"
-          placeholder="e.g. Subscriptions"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          error={error}
+    <form onSubmit={handleSubmit} style={formStyle}>
+      <TextField
+        label="Amount"
+        type="number"
+        step="0.01"
+        placeholder="0.00"
+        value={formData.amount}
+        onChange={(e) => handleChange("amount", e.target.value)}
+        error={errors.amount}
+        fullWidth
+        required
+      />
+
+      <TextField
+        label="Description"
+        type="text"
+        placeholder="Enter description"
+        value={formData.description}
+        onChange={(e) => handleChange("description", e.target.value)}
+        error={errors.description}
+        fullWidth
+        required
+      />
+
+      <SelectBox
+        label="Category"
+        options={categoryOptions}
+        value={formData.category}
+        onChange={(e) => handleChange("category", e.target.value)}
+        error={errors.category}
+        fullWidth
+        required
+      />
+
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={() => setIsCategoryModalOpen(true)}
+      >
+        + Add New Category
+      </Button>
+
+      <AddCategoryModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        onCategoryAdded={handleCategoryAdded}
+      />
+
+      <TextField
+        label="Date"
+        type="date"
+        value={formData.date}
+        max={today}
+        onChange={(e) => {
+          if (e.target.value > today) {
+            return;
+          }
+          handleChange("date", e.target.value);
+        }}
+        error={errors.date}
+        fullWidth
+        required
+      />
+
+      <div style={buttonGroupStyle}>
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={isSubmitting}
           fullWidth
-          required
-        />
-        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
-          <Button type="submit" variant="primary" disabled={isSubmitting} fullWidth>
-            {isSubmitting ? "Saving..." : "Add Category"}
-          </Button>
-          <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
+        >
+          {isSubmitting ? "Submitting..." : submitLabel}
+        </Button>
+        {onCancel && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
-        </div>
-      </form>
-    </Modal>
+        )}
+      </div>
+    </form>
   );
 }
