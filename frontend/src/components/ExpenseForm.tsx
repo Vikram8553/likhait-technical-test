@@ -7,6 +7,7 @@ import { ExpenseFormData } from "../types";
 import { EXPENSE_CATEGORIES } from "../constants/categories";
 import { TextField, SelectBox, Button } from "../vibes";
 import { useExpenseForm } from "../hooks/useExpenseForm";
+import { AddCategoryModal } from "./AddCategoryModal";
 
 interface ExpenseFormProps {
   initialData?: Partial<ExpenseFormData>;
@@ -27,6 +28,16 @@ export function ExpenseForm({
       onSubmit,
     });
 
+  const [extraCategories, setExtraCategories] = React.useState<string[]>([]);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = React.useState(false);
+
+  const handleCategoryAdded = (newCategory: string) => {
+    setExtraCategories((prev) => [...prev, newCategory]);
+    handleChange("category", newCategory);
+  };
+
+  const today = new Date().toISOString().split("T")[0];
+
   const formStyle: React.CSSProperties = {
     display: "flex",
     flexDirection: "column",
@@ -39,10 +50,16 @@ export function ExpenseForm({
     marginTop: "0.5rem",
   };
 
-  const categoryOptions = EXPENSE_CATEGORIES.map((category) => ({
-    value: category,
-    label: category,
-  }));
+  const categoryOptions = [
+    ...EXPENSE_CATEGORIES.map((category) => ({
+      value: category,
+      label: category,
+    })),
+    ...extraCategories.map((category) => ({
+      value: category,
+      label: category,
+    })),
+  ];
 
   return (
     <form onSubmit={handleSubmit} style={formStyle}>
@@ -79,11 +96,31 @@ export function ExpenseForm({
         required
       />
 
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={() => setIsCategoryModalOpen(true)}
+      >
+        + Add New Category
+      </Button>
+
+      <AddCategoryModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        onCategoryAdded={handleCategoryAdded}
+      />
+
       <TextField
         label="Date"
         type="date"
         value={formData.date}
-        onChange={(e) => handleChange("date", e.target.value)}
+        max={today}
+        onChange={(e) => {
+          if (e.target.value > today) {
+            return;
+          }
+          handleChange("date", e.target.value);
+        }}
         error={errors.date}
         fullWidth
         required
