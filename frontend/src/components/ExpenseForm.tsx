@@ -30,17 +30,21 @@ export function ExpenseForm({
 
   const today = new Date().toISOString().split("T")[0];
 
-  useEffect(() => {
+  const loadCategories = () => {
     fetchCategories().then((cats) => {
       const extra = cats
         .map((c) => c.name)
         .filter((name) => !EXPENSE_CATEGORIES.includes(name as any));
       setExtraCategories(extra);
     });
+  };
+
+  useEffect(() => {
+    loadCategories();
   }, []);
 
   const handleCategoryAdded = (newCategory: string) => {
-    setExtraCategories((prev) => [...prev, newCategory]);
+    loadCategories();
     handleChange("category", newCategory);
   };
 
