@@ -1,15 +1,10 @@
-/**
- * Form component for adding/editing expenses
- */
-
-import React from "react";
+import React, { useEffect } from "react";
 import { ExpenseFormData } from "../types";
 import { EXPENSE_CATEGORIES } from "../constants/categories";
 import { TextField, SelectBox, Button } from "../vibes";
 import { useExpenseForm } from "../hooks/useExpenseForm";
 import { AddCategoryModal } from "./AddCategoryModal";
-
-
+import { fetchCategories } from "../services/api";
 
 interface ExpenseFormProps {
   initialData?: Partial<ExpenseFormData>;
@@ -32,6 +27,17 @@ export function ExpenseForm({
 
   const [extraCategories, setExtraCategories] = React.useState<string[]>([]);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = React.useState(false);
+
+  const today = new Date().toISOString().split("T")[0];
+
+  useEffect(() => {
+    fetchCategories().then((cats) => {
+      const extra = cats
+        .map((c) => c.name)
+        .filter((name) => !EXPENSE_CATEGORIES.includes(name as any));
+      setExtraCategories(extra);
+    });
+  }, []);
 
   const handleCategoryAdded = (newCategory: string) => {
     setExtraCategories((prev) => [...prev, newCategory]);
@@ -114,7 +120,13 @@ export function ExpenseForm({
         label="Date"
         type="date"
         value={formData.date}
-        onChange={(e) => handleChange("date", e.target.value)}
+        max={today}
+        onChange={(e) => {
+          if (e.target.value > today) {
+            return;
+          }
+          handleChange("date", e.target.value);
+        }}
         error={errors.date}
         fullWidth
         required
